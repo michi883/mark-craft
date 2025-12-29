@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mark Craft - AI Logo Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M12 20 L18 26 L28 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Mark Craft</span>
+      </div>
+      <p class="tagline">Transform your product into a brand</p>
+    </header>
+
+    <main class="main">
+      <!-- Input Section -->
+      <section class="input-section">
+        <form id="descriptionForm" class="form">
+          <label for="description" class="label">Describe your product in one sentence</label>
+          <textarea
+            id="description"
+            class="textarea"
+            placeholder="e.g., A mobile app that helps people track their daily water intake with gamification..."
+            rows="3"
+            maxlength="500"
+            required
+          ></textarea>
+          <button type="submit" class="btn btn-primary" id="generateBtn">
+            <span class="btn-text">Generate Logos</span>
+            <span class="btn-loader" hidden></span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Brand Analysis Section -->
+      <section id="brandSection" class="brand-section" hidden>
+        <h2 class="section-title">Brand Analysis</h2>
+        <div class="brand-content">
+          <div class="brand-item">
+            <span class="brand-label">Keywords:</span>
+            <span id="keywords" class="brand-value"></span>
+          </div>
+          <div class="brand-item">
+            <span class="brand-label">Tone:</span>
+            <span id="tone" class="brand-value"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Logo Concepts Section -->
+      <section id="conceptsSection" class="concepts-section" hidden>
+        <h2 class="section-title">Logo Concepts</h2>
+        <div id="conceptsGrid" class="concepts-grid"></div>
+      </section>
+
+      <!-- Export Success Message -->
+      <div id="exportSuccess" class="export-success" hidden>
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="currentColor"/>
+          <path d="M8 12 L11 15 L16 9" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Logo exported successfully!</span>
+        <a id="exportUrl" href="#" target="_blank" class="export-link">View file</a>
+      </div>
+
+      <!-- Error Message -->
+      <div id="errorMessage" class="error-message" hidden></div>
+    </main>
+
+    <footer class="footer">
+      <p>Powered by Claude AI &bull; Deployed on Zeabur</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

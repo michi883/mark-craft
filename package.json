@@ -1,0 +1,20 @@
+{
+  "name": "mark-craft",
+  "version": "1.0.0",
+  "description": "AI-powered logo generator that transforms product descriptions into brand concepts",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["logo", "generator", "ai", "branding"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  }
+}
