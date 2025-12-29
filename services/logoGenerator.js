@@ -36,50 +36,29 @@ async function generateWithGemini(description) {
     throw new Error('GEMINI_API_KEY not set. Get free key at https://aistudio.google.com/apikey');
   }
 
-  const prompt = `You are a branding expert. Given this product description, extract brand keywords, tone, and create 3 unique logo concepts.
+  const prompt = `You are a branding expert. Generate logo concepts for this product: "${description}"
 
-Product description: "${description}"
+Return ONLY valid JSON in this compact format (no markdown, no newlines in values):
 
-Respond ONLY with valid JSON in this exact format (no markdown, no code blocks):
-{
-  "keywords": ["keyword1", "keyword2", "keyword3"],
-  "tone": "adjective describing the brand personality",
-  "logos": [
-    {
-      "id": "1",
-      "name": "Concept Name",
-      "description": "Brief explanation of the concept",
-      "svg": "<svg>...</svg>"
-    },
-    {
-      "id": "2",
-      "name": "Concept Name",
-      "description": "Brief explanation of the concept",
-      "svg": "<svg>...</svg>"
-    },
-    {
-      "id": "3",
-      "name": "Concept Name",
-      "description": "Brief explanation of the concept",
-      "svg": "<svg>...</svg>"
-    }
-  ]
-}
+{"keywords":["k1","k2","k3"],"tone":"word","logos":[{"id":"1","name":"Name","description":"Brief","svg":"<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 200 200\\"><circle cx=\\"100\\" cy=\\"100\\" r=\\"50\\" fill=\\"#6366f1\\\"/></svg>"},{"id":"2","name":"Name","description":"Brief","svg":"..."},{"id":"3","name":"Name","description":"Brief","svg":"..."}]}
 
-Design guidelines for SVG logos:
-- Use simple, clean geometric shapes
-- Maximum 3 colors from a harmonious palette
-- ViewBox should be "0 0 200 200"
-- Include text only if it's a wordmark style (keep it short)
-- Ensure contrast and scalability
-- Use modern, minimal aesthetics`;
+CRITICAL RULES:
+- Entire response must be ONE LINE of valid JSON
+- SVG must be minified (no line breaks, no extra spaces)
+- Escape all quotes in SVG: use \\" not "
+- Keep SVG simple: basic shapes only
+- Use only 2-3 hex colors like #6366f1, #22c55e, #ef4444
+- No comments, no markdown blocks, no text outside JSON
 
-  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+Example SVG: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="50" fill="#6366f1"/><rect x="70" y="70" width="60" height="60" fill="#22c55e"/></svg>`;
 
-  const response = await fetch(url, {
+  console.log(`Calling Gemini API: ${GEMINI_MODEL}`);
+
+  const response = await fetch(GEMINI_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-goog-api-key': GEMINI_API_KEY,
     },
     body: JSON.stringify({
       contents: [{
@@ -87,23 +66,146 @@ Design guidelines for SVG logos:
       }],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 3000,
+        maxOutputTokens: 8192,
       },
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Gemini API error: ${response.status} ${error}`);
+    console.error('Gemini API error response:', error);
+    throw new Error(`Gemini API error: ${response.status} - ${error}`);
+  }
+
+  const data = await response.json();
+  console.log('Gemini API response:', JSON.stringify(data).substring(0, 200));
+
+  // Handle different response structures
+  let content;
+  if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+    content = data.candidates[0].content.parts[0].text;
+  } else {
+    throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data).substring(0, 200)}`);
+  }
+
+  // Clean up JSON response - extract JSON block if wrapped in markdown
+  let jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+  if (jsonMatch) {
+    content = jsonMatch[1].trim();
+  } else {
+    // Try to find JSON object
+    jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      content = jsonMatch[0];
+    }
+  }
+
+  // Clean up any trailing commas in JSON (common issue)
+  content = content.replace(/,\s*([}\]])/g, '$1');
+
+  try {
+    return JSON.parse(content);
+  } catch (parseError) {
+    console.error('Failed to parse JSON response, attempting to fix...');
+    console.error('Content preview:', content.substring(0, 500));
+
+    // Try to fix common JSON issues - unescaped newlines in strings
+    content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+
+    try {
+      return JSON.parse(content);
+    } catch (retryError) {
+      throw new Error(`Failed to parse AI response as JSON. The AI may have generated invalid content. Error: ${retryError.message}`);
+    }
+  }
+}
+
+/**
+ * Refine a logo concept into a sophisticated, professional logo
+ * Simplified approach: Get ONLY the SVG, then wrap it ourselves
+ */
+async function refineLogoConcept(concept, productDescription) {
+  // Simpler prompt - just ask for SVG
+  const prompt = `Create a minimalist SVG logo. 200x200 viewBox. Use geometric shapes and 2-3 colors.
+
+Logo name: ${concept.name}
+Context: ${productDescription}
+
+Return ONLY the SVG code. No markdown, no explanation.`;
+
+  console.log(`Refining logo: ${concept.name}`);
+
+  const response = await fetch(GEMINI_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': GEMINI_API_KEY,
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Gemini API error response:', error);
+    throw new Error(`Gemini API error: ${response.status} - ${error}`);
   }
 
   const data = await response.json();
   let content = data.candidates[0].content.parts[0].text;
 
-  // Clean up JSON response
-  content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  console.log('Raw response (first 500 chars):', content.substring(0, 500));
+  console.log('Full response length:', content.length);
 
-  return JSON.parse(content);
+  // Extract SVG - remove markdown if present
+  content = content.replace(/```xml\s*/g, '').replace(/```\s*/g, '').trim();
+  content = content.replace(/```svg\s*/g, '').replace(/```\s*/g, '').trim();
+
+  // Extract just the SVG tag - use greedy match to get complete SVG
+  let svgMatch = content.match(/<svg[^>]*>[\s\S]*?<\/svg>/i);
+  if (!svgMatch) {
+    // Try alternative pattern - maybe SVG is self-closing or has different formatting
+    svgMatch = content.match(/<svg[\s\S]+?>/i);
+  }
+  if (!svgMatch) {
+    console.error('Could not find SVG in response. Full response:', content);
+    throw new Error('No valid SVG found in response');
+  }
+
+  let svg = svgMatch[0];
+
+  // Clean up SVG - minify it
+  svg = svg
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  console.log('Extracted SVG (first 200 chars):', svg.substring(0, 200));
+  console.log('SVG length:', svg.length);
+
+  // Verify SVG is valid
+  if (!svg.startsWith('<svg') || !svg.endsWith('</svg>')) {
+    throw new Error('Invalid SVG structure');
+  }
+
+  // Return our own response object
+  return {
+    id: 'refined',
+    name: `${concept.name} Professional`,
+    description: `Refined professional logo for ${concept.name}`,
+    svg: svg,
+    colors: [],
+    technique: 'Professional minimalist design',
+    refined: true,
+  };
 }
 
 /**
@@ -356,4 +458,4 @@ async function generateLogoConcepts(description) {
   }
 }
 
-module.exports = { generateLogoConcepts };
+module.exports = { generateLogoConcepts, refineLogoConcept };

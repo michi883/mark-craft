@@ -25,34 +25,39 @@ async function uploadSVG(fileName, svgContent) {
   // Clean filename and ensure .svg extension
   const cleanName = fileName.replace(/[^a-zA-Z0-9-_]/g, '_');
   const key = `${cleanName}.svg`;
-  const objectKey = `${BUCKET_NAME}/${key}`;
 
-  // Parse storage URL to get host and path
-  const storageUrl = new URL(INSFORGE_STORAGE_URL);
-  const host = storageUrl.hostname;
+  // InsForge API format: PUT /api/storage/buckets/{bucketName}/objects/{objectKey}
+  const uploadUrl = `${INSFORGE_STORAGE_URL}/api/storage/buckets/${BUCKET_NAME}/objects/${key}`;
 
-  // S3-compatible PUT request
-  const uploadUrl = `https://${host}/${objectKey}`;
+  console.log('Uploading to InsForge:', uploadUrl);
+
+  // Create FormData with the file
+  const formData = new FormData();
+  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  formData.append('file', blob, key);
 
   const response = await fetch(uploadUrl, {
     method: 'PUT',
     headers: {
-      'Content-Type': 'image/svg+xml',
       'Authorization': `Bearer ${INSFORGE_STORAGE_KEY}`,
+      // Don't set Content-Type - let fetch set it with the boundary
     },
-    body: svgContent,
+    body: formData,
   });
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('InsForge upload failed:', response.status, errorText);
     throw new Error(`Upload failed: ${response.status} ${errorText}`);
   }
 
-  // Return the public URL for the uploaded file
+  const result = await response.json();
+  console.log('Upload successful:', result);
+
   return {
     success: true,
     fileName: key,
-    url: `https://${host}/${objectKey}`,
+    url: result.data?.url || result.url,
   };
 }
 

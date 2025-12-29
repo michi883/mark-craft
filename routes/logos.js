@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { generateLogoConcepts } = require('../services/logoGenerator');
+const { generateLogoConcepts, refineLogoConcept } = require('../services/logoGenerator');
 const { uploadSVG, generateFileName } = require('../services/storage');
 
 /**
@@ -10,6 +10,8 @@ const { uploadSVG, generateFileName } = require('../services/storage');
 router.post('/generate', async (req, res) => {
   try {
     const { description } = req.body;
+
+    console.log('Received request with description:', description);
 
     if (!description || typeof description !== 'string') {
       return res.status(400).json({
@@ -31,10 +33,49 @@ router.post('/generate', async (req, res) => {
       ...result,
     });
   } catch (error) {
-    console.error('Error generating logos:', error);
+    console.error('=== ERROR GENERATING LOGOS ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to generate logo concepts',
       details: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
+/**
+ * POST /api/logos/refine
+ * Refine a selected logo concept into a sophisticated, professional logo
+ */
+router.post('/refine', async (req, res) => {
+  try {
+    const { concept, description } = req.body;
+
+    if (!concept || !description) {
+      return res.status(400).json({
+        error: 'Concept and description are required',
+      });
+    }
+
+    console.log('Refining concept:', concept.name);
+
+    const refinedLogo = await refineLogoConcept(concept, description);
+
+    res.json({
+      success: true,
+      logo: refinedLogo,
+    });
+  } catch (error) {
+    console.error('=== ERROR REFINING LOGO ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      error: 'Failed to refine logo',
+      details: error.message,
+      stack: error.stack,
     });
   }
 });
